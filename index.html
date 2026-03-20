@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who R U - Werewolf Edition</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        #btnCreate { background: #646cff; color: white; }
+        #btnJoin { background: #4caf50; color: white; }
+        #btnLeave { background: #999; color: white; margin-top: 10px; }
+        .room-item { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin: 5px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .host-badge { color: #f39c12; font-size: 0.8rem; }
+        ul { list-style: none; padding: 0; text-align: left; }
+        li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐺 Who R U</h1>
+
+        <div id="lobby">
+            <input type="text" id="username" placeholder="ตั้งชื่อของคุณ (ห้ามซ้ำ)">
+            <button id="btnCreate">สร้างห้องใหม่</button>
+            <hr>
+            <h4 style="margin-bottom: 5px;">ห้องที่เปิดอยู่ (ล่าสุด 10 ห้อง)</h4>
+            <div id="roomListArea">กำลังโหลดรายการห้อง...</div>
+            <hr>
+            <input type="text" id="roomInput" placeholder="หรือใส่รหัสห้องเอง">
+            <button id="btnJoin">เข้าห้องด้วยรหัส</button>
+        </div>
+
+        <div id="gameRoom" style="display:none;">
+            <h2 style="color: #646cff; margin-bottom: 5px;">Room ID</h2>
+            <code id="roomIdText" style="background: #eee; padding: 5px 10px; border-radius: 5px;"></code>
+            <h3 style="margin-top: 20px;">ผู้เล่นในห้อง (<span id="playerCountLabel">0</span>/10)</h3>
+            <ul id="playerList"></ul>
+            <button id="btnStart" style="display:none; background: #ff4747; color: white; margin-top: 20px;">เริ่มเกม</button>
+            <button id="btnLeave">ออกจากห้อง</button>
+        </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+</body>
+</html>
