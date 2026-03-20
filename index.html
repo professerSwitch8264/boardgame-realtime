@@ -2,45 +2,68 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Who R U - Werewolf Edition</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        #btnCreate { background: #646cff; color: white; }
-        #btnJoin { background: #4caf50; color: white; }
-        #btnLeave { background: #999; color: white; margin-top: 10px; }
-        .room-item { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin: 5px 0; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .host-badge { color: #f39c12; font-size: 0.8rem; }
-        ul { list-style: none; padding: 0; text-align: left; }
-        li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Who R U - Ultimate Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
     <div class="container">
-        <h1>🐺 Who R U</h1>
+        
+        <div id="lobby" class="card">
+            <h2 class="card-main-title">🏰 LOBBY</h2>
+            
+            <div class="form-group">
+                <label for="username">👤 ตั้งชื่อเล่นของคุณ</label>
+                <input type="text" id="username" class="styled-input" placeholder="เช่น Punchy" maxlength="12">
+            </div>
+            
+            <div class="avatar-selection">
+                <h4>🎭 เลือกตัวละคร</h4>
+                <div class="avatar-wrapper">
+                    <button class="nav-btn" id="prevAv">❮</button>
+                    <div id="avatarList" class="avatar-scroll-container"></div>
+                    <button class="nav-btn" id="nextAv">❯</button>
+                </div>
+            </div>
 
-        <div id="lobby">
-            <input type="text" id="username" placeholder="ตั้งชื่อของคุณ (ห้ามซ้ำ)">
-            <button id="btnCreate">สร้างห้องใหม่</button>
-            <hr>
-            <h4 style="margin-bottom: 5px;">ห้องที่เปิดอยู่ (ล่าสุด 10 ห้อง)</h4>
-            <div id="roomListArea">กำลังโหลดรายการห้อง...</div>
-            <hr>
-            <input type="text" id="roomInput" placeholder="หรือใส่รหัสห้องเอง">
-            <button id="btnJoin">เข้าห้องด้วยรหัส</button>
+            <div class="separator"></div>
+            
+            <div class="lobby-header-row">
+                <h4>🏘️ รายชื่อห้อง</h4>
+                <button id="btnCreate" class="btn-primary-sm">🎮 สร้างห้องใหม่</button>
+            </div>
+
+            <div class="search-area">
+                <input type="text" id="searchRoomInput" class="styled-input" placeholder="🔍 ค้นหาตามชื่อห้อง (6 หลัก)..." maxlength="6">
+            </div>
+            
+            <div id="roomListArea" class="room-list-scroll"></div>
         </div>
 
-        <div id="gameRoom" style="display:none;">
-            <h2 style="color: #646cff; margin-bottom: 5px;">Room ID</h2>
-            <code id="roomIdText" style="background: #eee; padding: 5px 10px; border-radius: 5px;"></code>
-            <h3 style="margin-top: 20px;">ผู้เล่นในห้อง (<span id="playerCountLabel">0</span>/10)</h3>
-            <ul id="playerList"></ul>
-            <button id="btnStart" style="display:none; background: #ff4747; color: white; margin-top: 20px;">เริ่มเกม</button>
-            <button id="btnLeave">ออกจากห้อง</button>
+        <div id="gameRoom" class="card game-area" style="display:none;">
+            <h2 class="card-main-title">⚙️ ROOM SETUP</h2>
+
+            <div class="room-info">
+                <span id="roomIdText" class="badge-id">ID: ------</span>
+                <span class="player-count">👥 <span id="playerCountLabel">0</span>/10</span>
+            </div>
+
+            <div id="playerList" class="list-layout"></div>
+
+            <div class="bottom-section">
+                <div class="chat-input-group">
+                    <input type="text" id="chatInput" placeholder="คุยกับเพื่อน..." maxlength="30">
+                    <button id="btnSend" class="btn-send-icon">🚀</button>
+                </div>
+
+                <div class="action-group">
+                    <button id="btnStart" class="btn-start-game" style="display: none;">🔥 เริ่มเกมเลย!</button>
+                    <button id="btnLeave" class="btn-muted">ออกจากห้อง</button>
+                </div>
+            </div>
         </div>
+
     </div>
     <script type="module" src="./main.js"></script>
 </body>
