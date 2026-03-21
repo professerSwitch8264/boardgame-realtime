@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const roomIdText = document.getElementById('roomIdText');
     const playerCountLabel = document.getElementById('playerCountLabel');
     const avatarList = document.getElementById('avatarList');
+    const btnStart = document.getElementById('btnStart');
 
     const myId = "p_" + Math.random().toString(36).substr(2, 9);
     let currentRoomId = null;
@@ -75,14 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const room = allRooms[rId];
             if (!room.players) return;
             const pCount = Object.keys(room.players).length;
+            const isPlaying = room.status === "playing";
             const item = document.createElement('div');
             item.className = 'room-item';
+            
+            let btnHtml = '';
+            if (isPlaying) {
+                btnHtml = `<button disabled style="width:85px; height:40px; background:var(--muted); border-radius:12px; color:white; font-size:0.9rem; border:none; font-weight:600; cursor:not-allowed;">กำลังเล่น</button>`;
+            } else {
+                btnHtml = `<button onclick="window.directJoin('${rId}')" style="width:70px; height:40px; background:var(--secondary); border-radius:12px; color:white; font-size:0.9rem; border:none; font-weight:600; cursor:pointer;">เข้า</button>`;
+            }
+
             item.innerHTML = `
                 <div style="flex:1;">
                     <span style="font-weight:600; font-size:1rem; color:var(--primary);">🏠 ${rId.substring(0,6).toUpperCase()}</span>
                     <br><span style="font-size:0.75rem; color:#94a3b8;">สมาชิกในห้อง ${pCount}/10 คน</span>
                 </div>
-                <button onclick="window.directJoin('${rId}')" style="width:70px; height:40px; background:var(--secondary); border-radius:12px; color:white; font-size:0.9rem; border:none; font-weight:600; cursor:pointer;">เข้า</button>
+                ${btnHtml}
             `;
             roomListArea.appendChild(item);
         });
@@ -90,6 +100,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     onValue(query(ref(db, 'rooms'), limitToLast(20)), (snapshot) => {
         allRooms = snapshot.val() || {};
+        
+        // คลีนอัปห้องผีเสริมความชัวร์ (กรณีมีห้องหลุดรอดมาแสดง)
+        Object.keys(allRooms).forEach(rId => {
+            if (!allRooms[rId].players) {
+                remove(ref(db, `rooms/${rId}`));
+                delete allRooms[rId];
+            }
+        });
+
         renderRooms(searchRoomInput.value);
     });
 
@@ -98,11 +117,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Main Logic ---
     async function leaveRoom() {
         if (!currentRoomId) return;
-        off(ref(db, `rooms/${currentRoomId}`));
-        await remove(ref(db, `rooms/${currentRoomId}/players/${myId}`));
-        const snap = await get(ref(db, `rooms/${currentRoomId}/players`));
-        if (!snap.exists()) await remove(ref(db, `rooms/${currentRoomId}`));
+        
+        const roomIdToLeave = currentRoomId; 
         currentRoomId = null;
+
+        off(ref(db, `rooms/${roomIdToLeave}`));
+        
+        // ยกเลิก onDisconnect ทั้งหมดก่อนออกเอง เพื่อป้องกันบัคลบห้องผิดพลาด
+        onDisconnect(ref(db, `rooms/${roomIdToLeave}`)).cancel();
+        onDisconnect(ref(db, `rooms/${roomIdToLeave}/players/${myId}`)).cancel();
+
+        await remove(ref(db, `rooms/${roomIdToLeave}/players/${myId}`));
+        
+        const snap = await get(ref(db, `rooms/${roomIdToLeave}/players`));
+        if (!snap.exists()) {
+            await remove(ref(db, `rooms/${roomIdToLeave}`));
+        }
+        
         playerList.innerHTML = "";
         gameRoomDiv.style.display = 'none';
         lobbyDiv.style.display = 'flex';
@@ -128,7 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return alert("❌ โปรดตั้งชื่อก่อน!");
         const roomSnap = await get(ref(db, `rooms/${roomId}`));
         if (!roomSnap.exists()) return alert("❌ ห้องนี้ปิดไปแล้ว!");
+        if (roomSnap.val().status === "playing") return alert("❌ ห้องนี้กำลังเล่นเกมอยู่!");
+        
+        // เข้ามาแบบเป็นผู้เล่นธรรมดา ตั้งค่าเริ่มต้นให้ลบแค่ตัวเองตอนเน็ตหลุด
         onDisconnect(ref(db, `rooms/${roomId}/players/${myId}`)).remove();
+        
         await set(ref(db, `rooms/${roomId}/players/${myId}`), { name, avatar: selectedAvatar, isHost: false, lastMsg: null });
         currentRoomId = roomId;
         showRoom(roomId);
@@ -139,8 +174,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return alert("❌ โปรดตั้งชื่อก่อน!");
         const newRoomRef = push(ref(db, 'rooms'));
         const roomId = newRoomRef.key;
-        onDisconnect(ref(db, `rooms/${roomId}/players/${myId}`)).remove();
-        await set(newRoomRef, { hostId: myId, players: { [myId]: { name, avatar: selectedAvatar, isHost: true, lastMsg: null } } });
+        
+        // คนสร้างเป็นคนแรกแน่ๆ ตั้งค่าเริ่มต้นให้ลบทั้งห้องถ้าเน็ตหลุด
+        onDisconnect(ref(db, `rooms/${roomId}`)).remove(); 
+        
+        // เพิ่มสถานะเริ่มต้นของห้องเป็น waiting
+        await set(newRoomRef, { hostId: myId, status: "waiting", players: { [myId]: { name, avatar: selectedAvatar, isHost: true, lastMsg: null } } });
         currentRoomId = roomId;
         showRoom(roomId);
     };
@@ -149,6 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
         lobbyDiv.style.display = 'none';
         gameRoomDiv.style.display = 'flex';
         roomIdText.innerText = `ROOM: ${id.substring(0,6).toUpperCase()}`;
+
+        let lastDisconnectMode = null; // ตัวแปรเก็บสถานะว่าเราตั้งลบแบบไหนไว้
 
         onValue(ref(db, `rooms/${id}`), async (snapshot) => {
             const roomData = snapshot.val();
@@ -160,12 +201,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const pIds = Object.keys(players);
             const amIHost = (roomData.hostId === myId);
 
+            // --- ระบบสลับ onDisconnect อัตโนมัติ ---
+            if (pIds.length === 1 && pIds[0] === myId) {
+                // ถ้าเหลือฉันคนเดียวในห้อง สั่งให้ลบทั้งห้องทิ้งถ้าปิดเบราว์เซอร์
+                if (lastDisconnectMode !== 'room') {
+                    onDisconnect(ref(db, `rooms/${id}/players/${myId}`)).cancel();
+                    onDisconnect(ref(db, `rooms/${id}`)).remove();
+                    lastDisconnectMode = 'room';
+                }
+            } else {
+                // ถ้ามีคนอื่นอยู่ด้วย สั่งให้ลบแค่ตัวฉันออก
+                if (lastDisconnectMode !== 'player') {
+                    onDisconnect(ref(db, `rooms/${id}`)).cancel();
+                    onDisconnect(ref(db, `rooms/${id}/players/${myId}`)).remove();
+                    lastDisconnectMode = 'player';
+                }
+            }
+            // ------------------------------------
+
             if (!players[roomData.hostId]) {
                 const newHostId = pIds[0];
-                const updates = {};
-                updates[`/rooms/${id}/hostId`] = newHostId;
-                updates[`/rooms/${id}/players/${newHostId}/isHost`] = true;
-                await update(ref(db), updates);
+                if (myId === newHostId) {
+                    const updates = {};
+                    updates[`/rooms/${id}/hostId`] = newHostId;
+                    updates[`/rooms/${id}/players/${newHostId}/isHost`] = true;
+                    update(ref(db), updates);
+                }
                 return;
             }
 
@@ -192,7 +253,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 playerList.appendChild(div);
             });
-            document.getElementById('btnStart').style.display = amIHost ? 'block' : 'none';
+            
+            // --- อัปเดตปุ่มเริ่มเกมตามสถานะห้อง ---
+            if (amIHost) {
+                btnStart.style.display = 'block';
+                if (roomData.status === "playing") {
+                    btnStart.innerText = "🛑 จบเกม (กลับไปรอคน)";
+                    btnStart.style.background = "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+                    btnStart.style.boxShadow = "0 4px 15px rgba(239, 68, 68, 0.4)";
+                    btnStart.onclick = () => update(ref(db, `rooms/${id}`), { status: "waiting" });
+                } else {
+                    btnStart.innerText = "🔥 เริ่มเกมเลย!";
+                    btnStart.style.background = "linear-gradient(135deg, #10b981 0%, #059669 100%)";
+                    btnStart.style.boxShadow = "0 4px 15px rgba(16, 185, 129, 0.4)";
+                    btnStart.onclick = () => update(ref(db, `rooms/${id}`), { status: "playing" });
+                }
+            } else {
+                btnStart.style.display = 'none';
+            }
         });
     }
 });
