@@ -67,6 +67,16 @@ body {
 }
 .avatar-item.selected { border-color: var(--primary); background: var(--primary-light); transform: scale(1.05); }
 
+/* สไตล์สำหรับตัวละครที่ถูกเลือกไปแล้วโดยคนอื่น */
+.avatar-item.disabled { 
+    opacity: 0.3; 
+    cursor: not-allowed; 
+    border-color: #e2e8f0; 
+    background: #f8fafc; 
+    transform: none; 
+    filter: grayscale(100%); 
+}
+
 .room-list-scroll { overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 8px; min-height: 100px; }
 .empty-rooms { text-align: center; padding: 30px 10px; background: #f8fafc; border-radius: 20px; border: 2px dashed #e2e8f0; }
 

@@ -17,15 +17,6 @@
                 <label for="username">👤 ตั้งชื่อเล่นของคุณ</label>
                 <input type="text" id="username" class="styled-input" placeholder="เช่น Punchy" maxlength="12">
             </div>
-            
-            <div class="avatar-selection">
-                <h4>🎭 เลือกตัวละคร</h4>
-                <div class="avatar-wrapper">
-                    <button class="nav-btn" id="prevAv">❮</button>
-                    <div id="avatarList" class="avatar-scroll-container"></div>
-                    <button class="nav-btn" id="nextAv">❯</button>
-                </div>
-            </div>
 
             <div class="separator"></div>
             
@@ -47,6 +38,15 @@
             <div class="room-info">
                 <span id="roomIdText" class="badge-id">ID: ------</span>
                 <span class="player-count">👥 <span id="playerCountLabel">0</span>/10</span>
+            </div>
+
+            <div class="avatar-selection" style="margin-top: 10px; margin-bottom: 5px;">
+                <h4>🎭 เลือกตัวละครของคุณ</h4>
+                <div class="avatar-wrapper">
+                    <button class="nav-btn" id="prevAv">❮</button>
+                    <div id="avatarList" class="avatar-scroll-container"></div>
+                    <button class="nav-btn" id="nextAv">❯</button>
+                </div>
             </div>
 
             <div id="playerList" class="list-layout"></div>

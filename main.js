@@ -19,27 +19,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const myId = "p_" + Math.random().toString(36).substr(2, 9);
     let currentRoomId = null;
-    let selectedAvatar = "🐱"; 
     let allRooms = {};
 
-    // --- Avatar ---
+    // --- Avatar (ย้ายมาใช้แบบ Dynamic ในห้อง) ---
     const avatars = ["🐱", "🐶", "🦊", "🦁", "🐸", "🐵", "🦄", "🐼", "🐙", "👻", "🐯", "🐨", "🐰", "🐹", "👽", "🤖"];
-    avatars.forEach(av => {
-        const el = document.createElement('div');
-        el.className = 'avatar-item';
-        el.innerText = av;
-        if (av === selectedAvatar) el.classList.add('selected');
-        el.onclick = () => {
-            document.querySelectorAll('.avatar-item').forEach(item => item.classList.remove('selected'));
-            el.classList.add('selected');
-            selectedAvatar = av;
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-        };
-        avatarList.appendChild(el);
-    });
-
+    
     document.getElementById('nextAv').onclick = () => avatarList.scrollBy({ left: 100, behavior: 'smooth' });
     document.getElementById('prevAv').onclick = () => avatarList.scrollBy({ left: -100, behavior: 'smooth' });
+
+    // ฟังก์ชันช่วยหา Avatar ที่ยังไม่มีใครใช้
+    const getFreeAvatar = (roomPlayers) => {
+        const usedAvatars = Object.values(roomPlayers || {}).map(p => p.avatar);
+        return avatars.find(a => !usedAvatars.includes(a)) || avatars[0];
+    };
 
     // --- Host Controls ---
     window.kickPlayer = async (targetId) => {
@@ -101,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
     onValue(query(ref(db, 'rooms'), limitToLast(20)), (snapshot) => {
         allRooms = snapshot.val() || {};
         
-        // คลีนอัปห้องผีเสริมความชัวร์ (กรณีมีห้องหลุดรอดมาแสดง)
         Object.keys(allRooms).forEach(rId => {
             if (!allRooms[rId].players) {
                 remove(ref(db, `rooms/${rId}`));
@@ -123,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         off(ref(db, `rooms/${roomIdToLeave}`));
         
-        // ยกเลิก onDisconnect ทั้งหมดก่อนออกเอง เพื่อป้องกันบัคลบห้องผิดพลาด
         onDisconnect(ref(db, `rooms/${roomIdToLeave}`)).cancel();
         onDisconnect(ref(db, `rooms/${roomIdToLeave}/players/${myId}`)).cancel();
 
@@ -159,12 +149,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!name) return alert("❌ โปรดตั้งชื่อก่อน!");
         const roomSnap = await get(ref(db, `rooms/${roomId}`));
         if (!roomSnap.exists()) return alert("❌ ห้องนี้ปิดไปแล้ว!");
-        if (roomSnap.val().status === "playing") return alert("❌ ห้องนี้กำลังเล่นเกมอยู่!");
         
-        // เข้ามาแบบเป็นผู้เล่นธรรมดา ตั้งค่าเริ่มต้นให้ลบแค่ตัวเองตอนเน็ตหลุด
+        const roomData = roomSnap.val();
+        if (roomData.status === "playing") return alert("❌ ห้องนี้กำลังเล่นเกมอยู่!");
+        if (Object.keys(roomData.players || {}).length >= 10) return alert("❌ ห้องเต็มแล้ว!");
+
+        const freeAvatar = getFreeAvatar(roomData.players);
+        
         onDisconnect(ref(db, `rooms/${roomId}/players/${myId}`)).remove();
         
-        await set(ref(db, `rooms/${roomId}/players/${myId}`), { name, avatar: selectedAvatar, isHost: false, lastMsg: null });
+        await set(ref(db, `rooms/${roomId}/players/${myId}`), { name, avatar: freeAvatar, isHost: false, lastMsg: null });
         currentRoomId = roomId;
         showRoom(roomId);
     };
@@ -175,11 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const newRoomRef = push(ref(db, 'rooms'));
         const roomId = newRoomRef.key;
         
-        // คนสร้างเป็นคนแรกแน่ๆ ตั้งค่าเริ่มต้นให้ลบทั้งห้องถ้าเน็ตหลุด
         onDisconnect(ref(db, `rooms/${roomId}`)).remove(); 
         
-        // เพิ่มสถานะเริ่มต้นของห้องเป็น waiting
-        await set(newRoomRef, { hostId: myId, status: "waiting", players: { [myId]: { name, avatar: selectedAvatar, isHost: true, lastMsg: null } } });
+        await set(newRoomRef, { hostId: myId, status: "waiting", players: { [myId]: { name, avatar: avatars[0], isHost: true, lastMsg: null } } });
         currentRoomId = roomId;
         showRoom(roomId);
     };
@@ -189,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameRoomDiv.style.display = 'flex';
         roomIdText.innerText = `ROOM: ${id.substring(0,6).toUpperCase()}`;
 
-        let lastDisconnectMode = null; // ตัวแปรเก็บสถานะว่าเราตั้งลบแบบไหนไว้
+        let lastDisconnectMode = null;
 
         onValue(ref(db, `rooms/${id}`), async (snapshot) => {
             const roomData = snapshot.val();
@@ -203,21 +195,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- ระบบสลับ onDisconnect อัตโนมัติ ---
             if (pIds.length === 1 && pIds[0] === myId) {
-                // ถ้าเหลือฉันคนเดียวในห้อง สั่งให้ลบทั้งห้องทิ้งถ้าปิดเบราว์เซอร์
                 if (lastDisconnectMode !== 'room') {
                     onDisconnect(ref(db, `rooms/${id}/players/${myId}`)).cancel();
                     onDisconnect(ref(db, `rooms/${id}`)).remove();
                     lastDisconnectMode = 'room';
                 }
             } else {
-                // ถ้ามีคนอื่นอยู่ด้วย สั่งให้ลบแค่ตัวฉันออก
                 if (lastDisconnectMode !== 'player') {
                     onDisconnect(ref(db, `rooms/${id}`)).cancel();
                     onDisconnect(ref(db, `rooms/${id}/players/${myId}`)).remove();
                     lastDisconnectMode = 'player';
                 }
             }
-            // ------------------------------------
 
             if (!players[roomData.hostId]) {
                 const newHostId = pIds[0];
@@ -230,6 +219,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // --- อัปเดตรายชื่ออวาตาร์ (ล็อคถ้าซ้ำ) ---
+            const takenAvatars = {};
+            pIds.forEach(pId => {
+                takenAvatars[players[pId].avatar] = pId;
+            });
+
+            avatarList.innerHTML = "";
+            avatars.forEach(av => {
+                const el = document.createElement('div');
+                el.className = 'avatar-item';
+                el.innerText = av;
+
+                if (takenAvatars[av]) {
+                    if (takenAvatars[av] === myId) {
+                        el.classList.add('selected'); // เป็นของเรา
+                    } else {
+                        el.classList.add('disabled'); // เป็นของคนอื่น
+                    }
+                }
+
+                el.onclick = async () => {
+                    // ถ้าถูกคนอื่นเลือกไปแล้วไม่ให้กด
+                    if (takenAvatars[av] && takenAvatars[av] !== myId) return;
+                    // ถ้าเป็นตัวเดิมของเราอยู่แล้ว ไม่ต้องอัปเดตให้เปลืองโควตา
+                    if (takenAvatars[av] === myId) return;
+                    
+                    // อัปเดตตัวละครใหม่ไปที่ Firebase
+                    await update(ref(db, `rooms/${id}/players/${myId}`), { avatar: av });
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                };
+                
+                avatarList.appendChild(el);
+            });
+
+            // --- อัปเดตรายชื่อผู้เล่น ---
             playerCountLabel.innerText = pIds.length;
             playerList.innerHTML = ""; 
 
